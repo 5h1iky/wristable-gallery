@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 分组标题（今天/昨天/本周…） -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/tvHeader"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="4dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="6dp"
+    android:textColor="@color/text_secondary"
+    android:textSize="14sp"
+    android:textStyle="bold"
+    tools:text="今天" />

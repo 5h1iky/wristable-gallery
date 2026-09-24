@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 磁贴/卡片：圆角 20dp、无阴影无渐变，按下 8% 白色涟漪 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33FFFFFF">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/tile" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+</ripple>

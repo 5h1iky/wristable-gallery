@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 互传（HTTP 服务端 / 发现 / 扫码后通信） -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+    <!-- 相册媒体读取：Android 13 以下走存储权限，13+ 走媒体权限（运行时分级申请） -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- 互传收文件：Android 9 及以下直写公共 Downloads 需要写权限（10+ 走 MediaStore 免权限） -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <!-- 文件浏览器：Android 11+ 所有文件访问（手表 ROM 通常宽松） -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:requestLegacyExternalStorage="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Wanlin"
+        android:usesCleartextTraffic="true">
+
+        <!-- 文件浏览器对外提供文件（ACTION_VIEW 用） -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.GalleryActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.ImageViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Wanlin" />
+
+        <activity
+            android:name=".ui.VideoPlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Wanlin"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <activity
+            android:name=".ui.TransferActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Wanlin" />
+
+        <activity
+            android:name=".ui.FileManagerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Wanlin" />
+
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Wanlin" />
+    </application>
+
+</manifest>

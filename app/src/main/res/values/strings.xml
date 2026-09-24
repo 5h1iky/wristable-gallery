@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">腕能图库</string>
+    <string name="gallery">相册</string>
+    <string name="videos">视频</string>
+    <string name="files">文件</string>
+    <string name="transfer">互传连接</string>
+    <string name="transfer_hint">同一 WiFi 互传</string>
+    <string name="settings">设置</string>
+    <string name="back">返回</string>
+    <string name="filter_all">全部</string>
+    <string name="filter_images">图片</string>
+    <string name="filter_videos">视频</string>
+    <string name="empty_gallery">没有媒体文件</string>
+    <string name="need_permission">需要存储/媒体权限才能显示相册，点此重试</string>
+    <string name="lock">锁定</string>
+    <string name="play">播放</string>
+    <string name="transfer_title">互传连接</string>
+    <string name="transfer_web_hint">同一 WiFi 下，手机/电脑浏览器打开上方地址\n即可上传文件到手表 / 下载手表文件</string>
+    <string name="service_running">服务运行中 · 手机扫码或输入地址</string>
+    <string name="service_stopped">服务已停止</string>
+    <string name="service_start">启动服务</string>
+    <string name="service_stop">停止服务</string>
+    <string name="filter_files">互传</string>
+    <string name="rename">重命名</string>
+    <string name="rename_ok">重命名成功</string>
+    <string name="delete">删除</string>
+    <string name="delete_ok">删除成功</string>
+    <string name="op_failed">操作失败</string>
+    <string name="no_app_open">没有可打开此文件的应用</string>
+    <string name="ui_scale">UI 缩放</string>
+    <string name="ui_scale_hint">拖动松手即时缩放全部控件（0.75~1.50）</string>
+    <string name="theme_color">主题色</string>
+    <string name="check_mark">✓</string>
+    <string name="port">互传端口</string>
+    <string name="port_invalid">端口需为 1024~65535 的数字</string>
+    <string name="about">关于腕能图库</string>
+    <string name="about_author">作者：明日awo(5h1iky)</string>
+    <string name="about_visit">访问作者主页</string>
+    <string name="close">关闭</string>
+    <string name="empty_folder">此文件夹为空</string>
+    <string name="need_all_files">需要「所有文件访问」权限才能浏览全部文件，跳转授权后返回</string>
+    <string name="file_info">详情</string>
+    <string name="meta_dir">%1$d 项</string>
+    <string name="meta_file">%1$s · %2$s · %3$s</string>
+    <string name="info_file">路径：%1$s\n后缀：%2$s\n大小：%3$s\n修改时间：%4$s</string>
+    <string name="info_dir">路径：%1$s\n子项：%2$d 个\n修改时间：%3$s</string>
+    <string name="rotate">旋转</string>
+    <string name="video_error">视频无法播放</string>
+    <string name="about_text">腕能图库 v%1$s\n专为安卓手表设计的相册/视频/互传工具\n\n· 1:1 屏 / dpi186 基准，圆屏方屏双兼容\n· UI 缩放 0.75~1.50 全局即时生效\n· 同 WiFi 网页互传：浏览器打开地址即可传文件\n\n纯本地运行，不收集任何数据</string>
+
+    <!-- 相册长按菜单（第 8 轮） -->
+    <string name="copy_file">复制副本</string>
+    <string name="copy_clip">复制到剪贴板</string>
+    <string name="share">分享</string>
+    <string name="copying">正在复制…</string>
+    <string name="copy_ok">已保存副本：%1$s</string>
+    <string name="clip_ok">已复制到剪贴板</string>
+    <string name="label_name">文件名：%1$s</string>
+    <string name="label_type">类型：%1$s</string>
+    <string name="label_dim">尺寸：%1$d×%2$d</string>
+    <string name="label_size">大小：%1$s</string>
+    <string name="label_duration">时长：%1$s</string>
+    <string name="label_time">时间：%1$s</string>
+    <string name="label_path">路径：%1$s</string>
+</resources>

@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <FrameLayout
+        android:id="@+id/videoContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextureView
+            android:id="@+id/videoView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+    <!-- 手势层：单击唤控件/双击适应填充/上下滑音量亮度 -->
+    <View
+        android:id="@+id/gestureLayer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 顶部条（3 秒淡出）：返回 + 文件名 + 锁定 -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_gravity="top"
+        android:background="#99000000"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/back"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_back"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="middle"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/btnRotate"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/rotate"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_rotate"
+            app:tint="@color/text_primary" />
+
+        <ImageButton
+            android:id="@+id/btnLock"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/lock"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_lock"
+            app:tint="@color/text_primary" />
+    </LinearLayout>
+
+    <!-- 中央播放/暂停大按钮 -->
+    <ImageButton
+        android:id="@+id/btnPlay"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_play_circle"
+        android:contentDescription="@string/play"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_play"
+        app:tint="@color/bg" />
+
+    <!-- 底部条（3 秒淡出）：时间 + 加粗进度条 -->
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:layout_gravity="bottom"
+        android:background="#99000000"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <TextView
+            android:id="@+id/tvCurrent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp"
+            tools:text="02:15"
+            xmlns:tools="http://schemas.android.com/tools" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/seekBar"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            app:haloColor="#224FC3F7"
+            app:labelBehavior="gone"
+            app:thumbColor="@color/accent_default"
+            app:thumbHeight="22dp"
+            app:thumbRadius="11dp"
+            app:thumbStrokeColor="#33000000"
+            app:thumbStrokeWidth="2dp"
+            app:thumbWidth="22dp"
+            app:trackColorActive="@color/accent_default"
+            app:trackColorInactive="#33FFFFFF"
+            app:trackHeight="8dp" />
+
+        <TextView
+            android:id="@+id/tvTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            tools:text="10:30"
+            xmlns:tools="http://schemas.android.com/tools" />
+    </LinearLayout>
+</FrameLayout>

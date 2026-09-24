@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 根：允许分享整个外部存储（所有文件访问权限下） -->
+<paths>
+    <external-path
+        name="external_root"
+        path="." />
+    <external-files-path
+        name="external_files"
+        path="." />
+</paths>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 相册网格单元：图片铺满格（无卡片底色），视频右下角时长角标 -->
+<com.wanlin.gallery.widget.SquareFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/bg">
+
+    <ImageView
+        android:id="@+id/ivThumb"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/gallery"
+        tools:background="@color/tile" />
+
+    <TextView
+        android:id="@+id/tvDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="3dp"
+        android:background="@drawable/bg_badge"
+        android:paddingStart="4dp"
+        android:paddingTop="1dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="1dp"
+        android:textColor="@color/text_primary"
+        android:textSize="10sp"
+        android:visibility="gone"
+        tools:text="0:32"
+        tools:visibility="visible" />
+</com.wanlin.gallery.widget.SquareFrameLayout>

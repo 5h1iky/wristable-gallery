@@ -1,0 +1,20 @@
+*.iml
+.gradle
+/.idea
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+keystore.properties
+
+# 签名与安装包绝不入库
+keystore/
+*.jks
+*.keystore
+*.apk
+
+# 非开源的 AI 交接文档与旧截图目录
+工作日志.md
+screenshots/

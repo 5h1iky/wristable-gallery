@@ -1,0 +1,70 @@
+name: Bug 反馈 / Bug report
+description: 报告一个腕能图库的 bug / Report a bug in Wristable Gallery
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！手表机型信息对适配排查非常重要，请尽量填全。/ Thanks! Watch hardware details are essential for compatibility fixes.
+  - type: input
+    id: brand
+    attributes:
+      label: 手表品牌 / Watch brand
+      description: 例如 华为 / 小米 / OPPO / 三星 / TicWatch ...
+      placeholder: e.g. Xiaomi
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: 手表型号 / Watch model
+      description: 具体型号，方便定位屏幕形状与分辨率 / Exact model (screen shape & resolution)
+      placeholder: e.g. Xiaomi Watch S3
+    validations:
+      required: true
+  - type: input
+    id: rom
+    attributes:
+      label: ROM / 系统版本 / ROM & Android version
+      description: 例如 HyperOS 2 (Android 11) / Wear OS 4
+      placeholder: e.g. HyperOS 2 (Android 11)
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: 应用版本 / App version
+      placeholder: e.g. v1.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 问题描述 / What happened?
+      description: 发生了什么？预期行为是什么？/ What happened and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      placeholder: |
+        1. 打开相册 …
+        2. 长按某张图片 …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 截图 / 录屏 / 日志（可选）/ Screenshots, screen recording or logs (optional)
+      description: 有 logcat / 截图 / 录屏的话贴在这里。/ Paste logcat output or attach media if available.
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其他信息（可选）/ Anything else? (optional)
+    validations:
+      required: false

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 底色系统：纯黑 OLED 底，卡片靠明度分层 -->
+    <color name="bg">#000000</color>
+    <color name="tile">#1C1C1E</color>
+    <color name="tile_alt">#141414</color>
+    <color name="line">#2A2A2A</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9E9E9E</color>
+    <!-- 警示红（删除等危险操作） -->
+    <color name="danger">#FF5252</color>
+
+    <!-- 四色点缀（默认冰蓝；运行时由 AccentManager 覆盖） -->
+    <color name="accent_ice_blue">#4FC3F7</color>
+    <color name="accent_mint">#69F0AE</color>
+    <color name="accent_amber">#FFB300</color>
+    <color name="accent_purple">#B388FF</color>
+    <color name="accent_default">#4FC3F7</color>
+</resources>
