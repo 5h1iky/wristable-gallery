@@ -35,6 +35,7 @@ class FileManagerActivity : BaseActivity() {
     private lateinit var rootDir: File
     private var currentDir: File? = null
     private var loadedOnce = false
+    private var pausedOnce = false
 
     private val permLauncher =
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
@@ -65,8 +66,18 @@ class FileManagerActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 从"所有文件访问"授权页返回时补载
-        if (!loadedOnce && hasStoragePermission()) load()
+        if (loadedOnce) return
+        if (hasStoragePermission()) {
+            load()
+        } else if (pausedOnce && Build.VERSION.SDK_INT >= 30) {
+            // 已去过授权页又回来了仍未授权（或 ROM 压根没打开授权页）→ 页面写提示，让用户手动去授权
+            showDenied(R.string.all_files_unavailable)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        pausedOnce = true
     }
 
     @Deprecated("Deprecated in Java")
@@ -90,15 +101,30 @@ class FileManagerActivity : BaseActivity() {
         if (hasStoragePermission()) {
             load()
         } else if (Build.VERSION.SDK_INT >= 30) {
-            // Android 11+：所有文件访问授权页
+            // Android 11+：所有文件访问授权页。
+            // ⚠️ 手表精简 ROM 可能两个授权页都不存在（第 10 轮实测手表点进本页直接闪退），
+            // 全部 try/catch 兜底：跳不了就显示可重试的空态，绝不抛 ActivityNotFoundException。
             Toast.makeText(this, R.string.need_all_files, Toast.LENGTH_LONG).show()
-            runCatching {
+            val jumped = runCatching {
                 startActivity(
                     Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
                         .setData(android.net.Uri.parse("package:$packageName"))
                 )
-            }.onFailure {
+                true
+            }.recoverCatching {
                 startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                true
+            }.getOrDefault(false)
+            if (!jumped) {
+                showDenied(R.string.all_files_unavailable)
+            } else {
+                // 有些手表 ROM 跳转"成功"（不抛异常）但授权页根本没打开：
+                // 1.2s 后仍停留本页且未授权 = 发现没跳走 → 就地提示用户手动授权
+                binding.root.postDelayed({
+                    if (!isFinishing && hasWindowFocus() && !hasStoragePermission()) {
+                        showDenied(R.string.all_files_unavailable)
+                    }
+                }, 1200)
             }
         } else {
             permLauncher.launch(
@@ -110,9 +136,9 @@ class FileManagerActivity : BaseActivity() {
         }
     }
 
-    private fun showDenied() {
+    private fun showDenied(msgRes: Int = R.string.need_permission) {
         binding.tvEmpty.visibility = View.VISIBLE
-        binding.tvEmpty.text = getString(R.string.need_permission)
+        binding.tvEmpty.text = getString(msgRes)
         binding.tvEmpty.setOnClickListener { ensurePermissionThenLoad() }
     }
 

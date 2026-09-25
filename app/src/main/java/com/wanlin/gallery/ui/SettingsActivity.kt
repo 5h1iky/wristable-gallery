@@ -3,9 +3,7 @@ package com.wanlin.gallery.ui
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
-import android.widget.EditText
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import com.wanlin.gallery.R
 import com.wanlin.gallery.base.BaseActivity
 import com.wanlin.gallery.databinding.ActivitySettingsBinding
@@ -78,24 +76,19 @@ class SettingsActivity : BaseActivity() {
     private fun setupPort() {
         binding.tvPortVal.text = TransferPrefs.port(this).toString()
         binding.rowPort.setOnClickListener {
-            val input = EditText(this).apply {
+            // 系统 AlertDialog 在本 ROM 上 positive 按钮不渲染，且手表上会撑满屏 → 统一走 AppDialogs
+            com.wanlin.gallery.util.AppDialogs.input(
+                this, getString(R.string.port), TransferPrefs.port(this).toString(),
                 inputType = InputType.TYPE_CLASS_NUMBER
-                setText(TransferPrefs.port(this@SettingsActivity).toString())
-            }
-            AlertDialog.Builder(this)
-                .setTitle(R.string.port)
-                .setView(input)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    val p = input.text.toString().toIntOrNull()
-                    if (p == null || p !in 1024..65535) {
-                        Toast.makeText(this, R.string.port_invalid, Toast.LENGTH_SHORT).show()
-                    } else {
-                        TransferPrefs.setPort(this, p)
-                        binding.tvPortVal.text = p.toString()
-                    }
+            ) { s ->
+                val p = s.toIntOrNull()
+                if (p == null || p !in 1024..65535) {
+                    Toast.makeText(this, R.string.port_invalid, Toast.LENGTH_SHORT).show()
+                } else {
+                    TransferPrefs.setPort(this, p)
+                    binding.tvPortVal.text = p.toString()
                 }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+            }
         }
     }
 
@@ -108,7 +101,6 @@ class SettingsActivity : BaseActivity() {
         val dlg = android.app.Dialog(this)
         dlg.window?.setBackgroundDrawableResource(android.R.color.transparent)
         val v = layoutInflater.inflate(R.layout.dialog_about, null)
-        dlg.setContentView(v)
         val ver = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "1.0.0"
         v.findViewById<android.widget.TextView>(R.id.tvVersion).text = "v$ver"
         (v.findViewById<View>(R.id.btnVisit).background as android.graphics.drawable.GradientDrawable)
@@ -126,6 +118,6 @@ class SettingsActivity : BaseActivity() {
             }
         }
         v.findViewById<View>(R.id.btnClose).setOnClickListener { dlg.dismiss() }
-        dlg.show()
+        com.wanlin.gallery.util.DialogStyle.show(this, dlg, v)   // 统一窗口样式：不占满表屏、点空白即关
     }
 }

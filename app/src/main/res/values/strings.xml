@@ -40,6 +40,7 @@
     <string name="close">关闭</string>
     <string name="empty_folder">此文件夹为空</string>
     <string name="need_all_files">需要「所有文件访问」权限才能浏览全部文件，跳转授权后返回</string>
+    <string name="all_files_unavailable">未能打开系统授权页，请手动到 系统设置 → 应用 → 腕能图库 → 权限 中开启「所有文件访问」，完成后点此重试</string>
     <string name="file_info">详情</string>
     <string name="meta_dir">%1$d 项</string>
     <string name="meta_file">%1$s · %2$s · %3$s</string>

@@ -32,7 +32,6 @@ object IconMenu {
         require(cells.size <= 6) { "IconMenu 最多 6 项" }
         val dialog = Dialog(activity)
         val view = LayoutInflater.from(activity).inflate(R.layout.dialog_media_menu, null)
-        dialog.setContentView(view)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         dialog.window?.setDimAmount(0.6f)
 
@@ -57,6 +56,6 @@ object IconMenu {
             }
             rows[i / 2].addView(v)
         }
-        dialog.show()
+        DialogStyle.show(activity, dialog, view)   // 统一窗口样式：不占满表屏、点空白即关
     }
 }
