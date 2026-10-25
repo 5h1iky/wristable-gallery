@@ -17,4 +17,5 @@ keystore/
 
 # 非开源的 AI 交接文档与旧截图目录（注意：必须带前导斜杠只忽略根目录，否则 docs/screenshots 也被吞）
 工作日志.md
+代码审计报告.md
 /screenshots/
