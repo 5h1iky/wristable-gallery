@@ -36,6 +36,7 @@ class FileManagerActivity : BaseActivity() {
     private var currentDir: File? = null
     private var loadedOnce = false
     private var pausedOnce = false
+    private var navSeq = 0
 
     private val permLauncher =
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
@@ -90,8 +91,21 @@ class FileManagerActivity : BaseActivity() {
     // ─────────── 权限 ───────────
 
     private fun hasStoragePermission(): Boolean =
-        if (Build.VERSION.SDK_INT >= 30) Environment.isExternalStorageManager()
-        else hasLegacyPermission()
+        if (Build.VERSION.SDK_INT >= 30) isAllFilesGranted() else hasLegacyPermission()
+
+    /**
+     * Android 11+ 所有文件访问状态。
+     * ⚠️ 手表 ROM 常见「标称安卓11、实际框架更旧」：直接调用 Environment.isExternalStorageManager()
+     *（API 30 新增）会抛 NoSuchMethodError —— 它是 Error 不是 Exception，普通 try/catch 拦不住，
+     * 表现就是点进本页直接闪退（手机正常）。这里改用反射 + Throwable 兜底，
+     * 取不到该 API 就退回旧版存储权限判断，绝不因缺 API 崩溃。
+     */
+    private fun isAllFilesGranted(): Boolean = try {
+        val m = Environment::class.java.getMethod("isExternalStorageManager")
+        m.invoke(null) == true
+    } catch (_: Throwable) {
+        hasLegacyPermission()
+    }
 
     private fun hasLegacyPermission(): Boolean =
         checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) ==
@@ -152,10 +166,15 @@ class FileManagerActivity : BaseActivity() {
         currentDir = dir
         loadedOnce = true
         binding.tvPath.text = pathLabel(dir)
+        val seq = ++navSeq
         Thread {
-            val children = dir.listFiles()?.map { FileNode(it, it.isDirectory) }.orEmpty()
+            val children = dir.listFiles()?.map {
+                FileNode(it, it.isDirectory, if (it.isDirectory) it.listFiles()?.size ?: 0 else 0)
+            }.orEmpty()
             val sorted = children.sortedWith(compareByDescending<FileNode> { it.isDir }.thenBy { it.file.name.lowercase() })
             runOnUiThread {
+                // 连续进出目录时丢弃过期结果，避免后发先至显示错目录
+                if (seq != navSeq) return@runOnUiThread
                 adapter.submit(sorted)
                 binding.tvEmpty.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
             }
@@ -198,7 +217,8 @@ class FileManagerActivity : BaseActivity() {
 
     private fun renameNode(node: FileNode) {
         AppDialogs.input(this, getString(R.string.rename), node.file.name) { name ->
-            val ok = node.file.renameTo(File(node.file.parentFile, name))
+            val ok = if (name.any { it in "/\\:*?\"<>|" }) false
+            else node.file.renameTo(File(node.file.parentFile, name))
             Toast.makeText(this, if (ok) R.string.rename_ok else R.string.op_failed, Toast.LENGTH_SHORT).show()
             refresh()
         }
@@ -217,9 +237,7 @@ class FileManagerActivity : BaseActivity() {
 
     private fun showInfo(node: FileNode) {
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val size = if (node.isDir) {
-            node.file.listFiles()?.size ?: 0
-        } else node.file.length()
+        val size = if (node.isDir) node.childCount else node.file.length()
         val msg = if (node.isDir) {
             getString(R.string.info_dir, node.file.absolutePath, size, fmt.format(Date(node.file.lastModified())))
         } else {
@@ -267,7 +285,7 @@ class FileManagerActivity : BaseActivity() {
             name.text = node.file.name
             if (node.isDir) {
                 icon.setImageResource(R.drawable.ic_folder)
-                meta.text = getString(R.string.meta_dir, node.file.listFiles()?.size ?: 0)
+                meta.text = getString(R.string.meta_dir, node.childCount)
             } else {
                 icon.setImageResource(R.drawable.ic_file)
                 val fmt = SimpleDateFormat("MM-dd", Locale.getDefault())

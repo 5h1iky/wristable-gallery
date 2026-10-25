@@ -22,13 +22,19 @@ import kotlin.math.min
 
 /**
  * 零依赖迷你 HTTP 文件服务（同一 WiFi 手机/电脑浏览器互传）：
- * - GET  /            → 内置网页端（拖拽上传 / 文件列表 / 下载）
- * - GET  /api/list    → JSON 文件列表（图片/视频/互传下载）
- * - GET  /api/file    → 流式下载（?kind=image|video|download&id=&name=）
- * - POST /api/upload  → 原始流上传（?name=，网页 fetch/XHR 直接传 File）
+ * - GET  /            → 网页端（assets/web/index.html：拖拽上传 / 分类列表 / 下载）
+ * - GET  /api/list    → JSON 文件列表（图片/视频/音乐/互传文件夹全部类型）
+ * - GET  /api/file    → 流式下载（?kind=image|video|audio|download&id=&name=）
+ * - POST /api/upload  → 原始流上传（?name=，任意文件类型）
+ *
+ * 列表分类：
+ * - image / video / audio → MediaStore 对应集合
+ * - download → 互传目录 Download/腕能图库（任意后缀：pdf/txt/zip/音乐…全收）
+ *   · API 29+：MediaStore.Downloads 查询
+ *   · API ≤28：直接文件列目录
  *
  * 保存策略（版本分支）：
- * - API 29+：MediaStore.Downloads 插入 /Downloads/腕能图库
+ * - API 29+：MediaStore.Downloads 插入 /Downloads/腕能图库（写入期 IS_PENDING 保护）
  * - API 24~28：直写公共 Downloads/腕能图库（需 WRITE_EXTERNAL_STORAGE，manifest 已加 maxSdk28）
  */
 class HttpFileServer(
@@ -43,13 +49,19 @@ class HttpFileServer(
     private var server: ServerSocket? = null
 
     fun start() {
+        if (running) return
+        running = true
         Thread({
             try {
                 server = ServerSocket().apply {
                     reuseAddress = true
                     bind(InetSocketAddress(port))
                 }
-                running = true
+                // stop() 可能发生在 bind 之前：此时直接关掉，不留孤儿服务
+                if (!running) {
+                    runCatching { server?.close() }
+                    return@Thread
+                }
                 onLog("服务已启动，端口 $port")
                 while (running) {
                     val sock = server?.accept() ?: break
@@ -86,13 +98,13 @@ class HttpFileServer(
                     contentLength = h.substringAfter(":").trim().toIntOrNull() ?: 0
                 }
             }
-            val uri = URI(parts[1])
-            val path = uri.path ?: "/"
-            val query = parseQuery(uri.rawQuery)
-
             try {
+                val uri = URI(parts[1])
+                val path = uri.path ?: "/"
+                val query = parseQuery(uri.rawQuery)
                 when {
-                    method == "GET" && (path == "/" || path == "/index.html") -> sendRaw(output, 200, "OK", "text/html; charset=utf-8", HTML.toByteArray())
+                    method == "GET" && (path == "/" || path == "/index.html") ->
+                        sendRaw(output, 200, "OK", "text/html; charset=utf-8", webPage.toByteArray())
                     method == "GET" && path == "/api/list" -> sendList(output)
                     method == "GET" && path == "/api/file" -> sendFile(output, query)
                     method == "POST" && path == "/api/upload" -> recvFile(input, output, query, contentLength)
@@ -106,24 +118,32 @@ class HttpFileServer(
         }
     }
 
+    /** 网页端：assets 里的完整版，读不到时降级到内置极简页 */
+    private val webPage: String by lazy {
+        runCatching {
+            context.assets.open("web/index.html").bufferedReader().use { it.readText() }
+        }.getOrDefault(FALLBACK_HTML)
+    }
+
     // ─────────── 列表 ───────────
 
     private fun sendList(output: OutputStream) {
         val arr = JSONArray()
+        collectMedia(arr, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image",
+            arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATE_ADDED))
+        collectMedia(arr, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "video",
+            arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATE_ADDED))
+        collectMedia(arr, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, "audio",
+            arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.SIZE, MediaStore.Audio.Media.DATE_ADDED))
         if (Build.VERSION.SDK_INT >= 29) {
-            // 图片
-            collectMedia(output = null, arr = arr, collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI, kind = "image",
-                cols = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATE_ADDED))
-            collectMedia(null, arr, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "video",
-                arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATE_ADDED))
-            collectMedia(null, arr, MediaStore.Downloads.EXTERNAL_CONTENT_URI, "download",
-                arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME, MediaStore.Downloads.SIZE, MediaStore.Downloads.DATE_ADDED))
+            // 互传目录（任意后缀）：pdf/txt/doc/zip/音乐文件……全类型都在 Downloads 集合里
+            collectMedia(arr, MediaStore.Downloads.EXTERNAL_CONTENT_URI, "download",
+                arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME,
+                    MediaStore.Downloads.SIZE, MediaStore.Downloads.DATE_ADDED))
         } else {
-            collectMedia(null, arr, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image",
-                arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATE_ADDED))
-            collectMedia(null, arr, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "video",
-                arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATE_ADDED))
-            // ≤28：互传文件夹按文件列
             for (f in sharedDir().listFiles().orEmpty()) {
                 if (!f.isFile) continue
                 val o = JSONObject()
@@ -137,19 +157,17 @@ class HttpFileServer(
         sendRaw(output, 200, "OK", "application/json; charset=utf-8", arr.toString().toByteArray())
     }
 
-    private fun collectMedia(
-        output: OutputStream?, arr: JSONArray,
-        collection: android.net.Uri, kind: String, cols: Array<String>
-    ) {
+    private fun collectMedia(arr: JSONArray, collection: android.net.Uri, kind: String, cols: Array<String>) {
         try {
-            // 注意：sortOrder 不能拼 LIMIT（新 MediaProvider 会拒绝），上限在循环里控制
+            // 注意：sortOrder 不能拼 LIMIT（新 MediaProvider 会拒绝），上限在循环里控制；
+            // Throwable 兜底：部分授权 / 怪 ROM 缺 API（NoSuchFieldError）都只影响本类目
             context.contentResolver.query(collection, cols, null, null, "${cols[3]} DESC")?.use { c ->
                 val iId = c.getColumnIndexOrThrow(cols[0])
                 val iName = c.getColumnIndexOrThrow(cols[1])
                 val iSize = c.getColumnIndexOrThrow(cols[2])
                 val iDate = c.getColumnIndexOrThrow(cols[3])
                 var n = 0
-                while (c.moveToNext() && n < 300) {
+                while (c.moveToNext() && n < 500) {
                     val o = JSONObject()
                     o.put("kind", kind)
                     o.put("id", c.getLong(iId))
@@ -160,7 +178,7 @@ class HttpFileServer(
                     n++
                 }
             }
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
         }
     }
 
@@ -169,20 +187,26 @@ class HttpFileServer(
     private fun sendFile(output: OutputStream, query: Map<String, String>) {
         val kind = query["kind"] ?: "image"
         when (kind) {
+            "image" -> streamUri(output, MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                query["id"]?.toLongOrNull() ?: -1, query["name"] ?: "img")
+            "video" -> streamUri(output, MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                query["id"]?.toLongOrNull() ?: -1, query["name"] ?: "vid")
+            "audio" -> streamUri(output, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                query["id"]?.toLongOrNull() ?: -1, query["name"] ?: "aud")
             "download" -> {
                 if (Build.VERSION.SDK_INT >= 29) {
-                    val id = query["id"]?.toLongOrNull() ?: return sendRaw(output, 400, "Bad", "text/plain", "bad id".toByteArray())
+                    val id = query["id"]?.toLongOrNull()
+                        ?: return sendRaw(output, 400, "Bad", "text/plain", "bad id".toByteArray())
                     streamUri(output, MediaStore.Downloads.EXTERNAL_CONTENT_URI, id, query["name"] ?: "file")
                 } else {
-                    val name = query["name"] ?: return sendRaw(output, 400, "Bad", "text/plain", "bad name".toByteArray())
+                    val name = query["name"]
+                        ?: return sendRaw(output, 400, "Bad", "text/plain", "bad name".toByteArray())
                     val f = File(sharedDir(), sanitize(name))
                     if (!f.exists()) return sendRaw(output, 404, "NF", "text/plain", "no file".toByteArray())
                     sendRawHead(output, 200, "OK", mimeOf(f.name), f.length(), f.name)
                     f.inputStream().use { it.copyTo(output) }
                 }
             }
-            "image" -> streamUri(output, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, query["id"]?.toLongOrNull() ?: -1, query["name"] ?: "img")
-            "video" -> streamUri(output, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, query["id"]?.toLongOrNull() ?: -1, query["name"] ?: "vid")
             else -> sendRaw(output, 404, "NF", "text/plain", "bad kind".toByteArray())
         }
     }
@@ -190,8 +214,11 @@ class HttpFileServer(
     private fun streamUri(output: OutputStream, base: android.net.Uri, id: Long, name: String) {
         if (id < 0) return sendRaw(output, 400, "Bad", "text/plain", "bad id".toByteArray())
         val uri = android.content.ContentUris.withAppendedId(base, id)
-        val fd = context.contentResolver.openAssetFileDescriptor(uri, "r")
-            ?: return sendRaw(output, 404, "NF", "text/plain", "no file".toByteArray())
+        val fd = try {
+            context.contentResolver.openAssetFileDescriptor(uri, "r")
+        } catch (_: Throwable) {
+            null
+        } ?: return sendRaw(output, 404, "NF", "text/plain", "no file".toByteArray())
         val len = fd.length
         sendRawHead(output, 200, "OK", mimeOf(name), if (len >= 0) len else -1, name)
         fd.createInputStream().use { it.copyTo(output) }
@@ -200,7 +227,8 @@ class HttpFileServer(
     // ─────────── 上传 ───────────
 
     private fun recvFile(input: InputStream, output: OutputStream, query: Map<String, String>, length: Int) {
-        val name = sanitize(URLDecoder.decode(query["name"] ?: "file_${System.currentTimeMillis()}", "UTF-8"))
+        // query 的值已在 parseQuery 解过一次码，这里不能再解（含 % 的文件名会直接抛异常）
+        val name = sanitize(query["name"] ?: "file_${System.currentTimeMillis()}")
         if (Build.VERSION.SDK_INT >= 29) {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)
@@ -210,18 +238,26 @@ class HttpFileServer(
             }
             val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: throw IOException("MediaStore 插入失败")
-            context.contentResolver.openOutputStream(uri)?.use { out -> copyLimited(input, out, length) }
-                ?: throw IOException("无法打开输出流")
-            values.clear()
-            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            context.contentResolver.update(uri, values, null, null)
+            try {
+                val out = context.contentResolver.openOutputStream(uri)
+                    ?: throw IOException("无法打开输出流")
+                out.use { copyLimited(input, it, length) }
+                values.clear()
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                context.contentResolver.update(uri, values, null, null)
+            } catch (e: Exception) {
+                // 写入失败：删掉半截条目，别在相册/下载里留垃圾
+                runCatching { context.contentResolver.delete(uri, null, null) }
+                throw e
+            }
         } else {
             val f = File(sharedDir(), name)
             f.outputStream().use { out -> copyLimited(input, out, length) }
             MediaScannerConnection.scanFile(context, arrayOf(f.absolutePath), null, null)
         }
         onLog("已接收：$name")
-        sendRaw(output, 200, "OK", "application/json; charset=utf-8", """{"ok":true,"name":"$name"}""".toByteArray())
+        val json = JSONObject().put("ok", true).put("name", name)
+        sendRaw(output, 200, "OK", "application/json; charset=utf-8", json.toString().toByteArray())
     }
 
     private fun sharedDir(): File =
@@ -251,9 +287,10 @@ class HttpFileServer(
 
     // ─────────── 工具 ───────────
 
+    /** 读一行 HTTP 头（限长防恶意大行撑爆内存） */
     private fun readLine(input: InputStream): String? {
         val sb = StringBuilder()
-        while (true) {
+        while (sb.length < 8192) {
             val b = input.read()
             if (b == -1) return if (sb.isEmpty()) null else sb.toString()
             if (b == '\n'.code) break
@@ -292,48 +329,16 @@ class HttpFileServer(
     }
 
     companion object {
-        /** 内置网页端：深色主题，拖拽上传 + 列表下载，手机/电脑浏览器零安装 */
-        val HTML: String = """
+        /** assets 读不到网页时的降级页 */
+        val FALLBACK_HTML: String = """
 <!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>腕能图库 · 互传</title><style>
-body{background:#000;color:#fff;font-family:system-ui;margin:0;padding:16px}
-h1{font-size:20px;margin:4px 0 14px}
-.card{background:#1c1c1e;border-radius:16px;padding:16px;margin-bottom:12px}
-#drop{border:2px dashed #4a4a4c;border-radius:12px;padding:28px;text-align:center;color:#9e9e9e}
-#drop.over{border-color:#4FC3F7;color:#4FC3F7}
-.row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #2a2a2a}
-.row:last-child{border-bottom:none}
-.nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
-.sz{color:#9e9e9e;font-size:12px;margin-right:10px}
-a{color:#4FC3F7;text-decoration:none;font-size:14px}
-#prog{color:#69F0AE;font-size:13px;min-height:18px}
-</style></head><body>
-<h1>腕能图库 · 互传</h1>
-<div class="card"><div id="drop">拖文件到这里，或点击选择（传入手表）</div>
-<input id="file" type="file" multiple style="display:none"><div id="prog"></div></div>
-<div class="card"><b style="font-size:14px">手表文件</b><div id="list"></div></div>
-<script>
-var drop=document.getElementById('drop'),file=document.getElementById('file'),prog=document.getElementById('prog');
-drop.onclick=function(){file.click()};
-file.onchange=function(){up(file.files)};
-['dragover','dragenter'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('over')})});
-['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove('over')})});
-drop.addEventListener('drop',function(ev){up(ev.dataTransfer.files)});
-function up(files){for(var i=0;i<files.length;i++){one(files[i])}}
-function one(f){var x=new XMLHttpRequest();x.open('POST','/api/upload?name='+encodeURIComponent(f.name));
-x.upload.onprogress=function(ev){if(ev.lengthComputable)prog.textContent=f.name+' '+Math.round(ev.loaded/ev.total*100)+'%'};
-x.onload=function(){prog.textContent=f.name+' 上传完成';list()};
-x.onerror=function(){prog.textContent=f.name+' 上传失败'};
-x.send(f)}
-function fmt(n){var u=['B','KB','MB','GB'],i=0;while(n>1024&&i<3){n/=1024;i++}return n.toFixed(i?1:0)+u[i]}
-function list(){fetch('/api/list').then(function(r){return r.json()}).then(function(a){
-var h='';a.forEach(function(it){
-h+='<div class="row"><span class="nm">'+it.name+'</span><span class="sz">'+fmt(it.size)+'</span>'+
-'<a href="/api/file?kind='+it.kind+'&id='+(it.id||'')+'&name='+encodeURIComponent(it.name)+'">下载</a></div>'});
-document.getElementById('list').innerHTML=h||'<div style="color:#9e9e9e;padding:10px 0">（暂无文件）</div>'})}
-list();setInterval(list,5000);
-</script></body></html>
+<title>腕能图库 · 互传</title></head>
+<body style="background:#000;color:#fff;font-family:system-ui;padding:16px">
+<h2>腕能图库 · 互传</h2>
+<p>网页资源缺失（assets/web/index.html），请重新安装应用。</p>
+<p><a style="color:#4FC3F7" href="/api/list">/api/list</a></p>
+</body></html>
 """.trimIndent()
     }
 }

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>腕能图库 · 互传</title>
+<style>
+  :root{
+    --bg:#000; --card:#1c1c1e; --line:#2a2a2a; --txt:#fff;
+    --sub:#9e9e9e; --accent:#4FC3F7; --ok:#69F0AE; --err:#FF8A80; --warn:#FFB300;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; margin:0; padding:16px; padding-bottom:32px}
+  h1{font-size:20px; margin:4px 0 2px}
+  .sub{color:var(--sub); font-size:12px; margin:0 0 14px}
+  .card{background:var(--card); border-radius:16px; padding:16px; margin-bottom:12px}
+  .card-title{font-size:14px; font-weight:600; margin:0 0 10px; display:flex; align-items:center; justify-content:space-between}
+  .btn{background:var(--accent); color:#000; border:none; border-radius:10px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer}
+  .btn.ghost{background:transparent; color:var(--accent); border:1px solid var(--accent)}
+  .btn:active{opacity:.75}
+
+  /* ── 上传区 ── */
+  #drop{border:2px dashed #4a4a4c; border-radius:12px; padding:26px 16px; text-align:center; color:var(--sub); font-size:14px; cursor:pointer; transition:border-color .15s,color .15s}
+  #drop.over{border-color:var(--accent); color:var(--accent); background:rgba(79,195,247,.06)}
+  #drop b{color:var(--accent)}
+  #queue{margin-top:10px}
+  .qrow{display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); font-size:12px}
+  .qrow:last-child{border-bottom:none}
+  .qname{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--txt)}
+  .qbar{width:72px; height:5px; background:#333; border-radius:3px; overflow:hidden; flex-shrink:0}
+  .qbar i{display:block; height:100%; width:0; background:var(--accent); border-radius:3px; transition:width .2s}
+  .qst{width:52px; text-align:right; color:var(--sub); flex-shrink:0}
+  .qst.ok{color:var(--ok)} .qst.err{color:var(--err)}
+  #upStatus{color:var(--ok); font-size:12px; min-height:17px; margin-top:8px}
+
+  /* ── 筛选/搜索 ── */
+  .toolbar{display:flex; gap:8px; margin-bottom:10px}
+  #search{flex:1; background:#2c2c2e; border:1px solid var(--line); color:var(--txt); border-radius:10px; padding:8px 12px; font-size:13px; outline:none}
+  #search:focus{border-color:var(--accent)}
+  .chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:6px}
+  .chip{flex-shrink:0; border:1px solid var(--line); background:transparent; color:var(--sub); border-radius:999px; padding:6px 13px; font-size:12px; cursor:pointer; white-space:nowrap}
+  .chip.on{border-color:var(--accent); color:var(--accent); font-weight:600}
+
+  /* ── 文件行 ── */
+  .row{display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .thumb{width:46px; height:46px; border-radius:9px; flex-shrink:0; background:#2c2c2e; display:flex; align-items:center; justify-content:center; font-size:21px; overflow:hidden}
+  .thumb img{width:100%; height:100%; object-fit:cover}
+  .info{flex:1; min-width:0}
+  .nm{font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .meta{color:var(--sub); font-size:11px; margin-top:2px}
+  .dl{color:var(--accent); text-decoration:none; font-size:13px; padding:6px 4px; flex-shrink:0}
+  .empty{color:var(--sub); text-align:center; padding:22px 0; font-size:13px}
+  #stat{color:var(--sub); font-size:11px; text-align:center; margin-top:14px}
+  .hint{color:var(--sub); font-size:11px; line-height:1.7; margin-top:8px}
+</style>
+</head>
+<body>
+
+<h1>腕能图库 · 互传</h1>
+<p class="sub">同一 WiFi · 手表 ↔ 手机/电脑 · <span id="host"></span></p>
+
+<div class="card">
+  <div class="card-title">上传到手表（任意文件类型）</div>
+  <div id="drop">拖文件到这里，或 <b>点击选择</b><br><span style="font-size:11px">支持图片 / 视频 / 音乐 / PDF / TXT / 文档 / 压缩包… 全部类型</span></div>
+  <input id="file" type="file" multiple style="display:none">
+  <div id="queue"></div>
+  <div id="upStatus"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <span>手表文件</span>
+    <button class="btn ghost" id="refresh">刷新</button>
+  </div>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="搜索文件名…">
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="list"><div class="empty">加载中…</div></div>
+</div>
+
+<div id="stat"></div>
+<div class="hint">
+  提示：上传的文件保存在手表「下载/腕能图库」目录，可通过手表的 文件管理 查看；<br>
+  图片/视频/音乐为手表媒体库内容，文件为互传目录的全部文件。
+</div>
+
+<script>
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+
+/* ───────── 工具 ───────── */
+function fmtSize(n){
+  var u = ['B','KB','MB','GB','TB'], i = 0;
+  n = Number(n) || 0;
+  while (n >= 1024 && i < u.length - 1){ n /= 1024; i++; }
+  return (i === 0 ? n.toFixed(0) : n.toFixed(1)) + u[i];
+}
+function fmtDate(sec){
+  if (!sec) return '';
+  var d = new Date(sec * 1000), now = new Date();
+  var p = function(x){ return (x < 10 ? '0' : '') + x; };
+  if (d.getFullYear() === now.getFullYear())
+    return p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+}
+function extOf(name){
+  var i = name.lastIndexOf('.');
+  return i > 0 ? name.slice(i + 1).toLowerCase() : '';
+}
+function iconOf(it){
+  if (it.kind === 'image') return '🖼️';
+  if (it.kind === 'video') return '🎬';
+  if (it.kind === 'audio') return '🎵';
+  var e = extOf(it.name);
+  if (e === 'pdf') return '📕';
+  if (e === 'txt' || e === 'log' || e === 'md') return '📝';
+  if (e === 'doc' || e === 'docx') return '📘';
+  if (e === 'xls' || e === 'xlsx' || e === 'csv') return '📊';
+  if (e === 'ppt' || e === 'pptx') return '📽️';
+  if (e === 'zip' || e === 'rar' || e === '7z' || e === 'tar' || e === 'gz') return '📦';
+  if (e === 'apk') return '🤖';
+  if (e === 'mp3' || e === 'flac' || e === 'wav' || e === 'aac' || e === 'ogg' || e === 'm4a') return '🎵';
+  if (e === 'mp4' || e === 'mkv' || e === 'avi' || e === 'mov' || e === 'flv') return '🎬';
+  if (e === 'jpg' || e === 'jpeg' || e === 'png' || e === 'gif' || e === 'webp' || e === 'bmp') return '🖼️';
+  return '📄';
+}
+function downloadUrl(it){
+  var q = 'kind=' + encodeURIComponent(it.kind) + '&name=' + encodeURIComponent(it.name);
+  if (it.id !== undefined && it.id !== null && it.id !== '') q += '&id=' + encodeURIComponent(it.id);
+  return '/api/file?' + q;
+}
+
+/* ───────── 上传（逐个排队，带进度） ───────── */
+var uploading = 0;
+
+function pickFiles(){ $('file').click(); }
+
+function enqueue(files){
+  var arr = [];
+  for (var i = 0; i < files.length; i++) arr.push(files[i]);
+  if (!arr.length) return;
+  $('upStatus').textContent = '';
+  arr.forEach(function(f){ addQueueRow(f); });
+  (function next(){
+    if (!arr.length){
+      if (uploading === 0){
+        $('upStatus').textContent = '全部上传完成';
+        loadList();
+      }
+      return;
+    }
+    uploadOne(arr.shift(), next);
+  })();
+}
+
+function addQueueRow(f){
+  var row = document.createElement('div');
+  row.className = 'qrow';
+  var nm = document.createElement('span'); nm.className = 'qname'; nm.textContent = f.name;
+  var bar = document.createElement('span'); bar.className = 'qbar';
+  var fill = document.createElement('i'); bar.appendChild(fill);
+  var st = document.createElement('span'); st.className = 'qst'; st.textContent = '等待';
+  row.appendChild(nm); row.appendChild(bar); row.appendChild(st);
+  $('queue').insertBefore(row, $('queue').firstChild);
+  f._row = row; f._fill = fill; f._st = st;
+}
+
+function uploadOne(f, done){
+  uploading++;
+  var st = f._st, fill = f._fill;
+  st.className = 'qst'; st.textContent = '0%';
+  var x = new XMLHttpRequest();
+  x.open('POST', '/api/upload?name=' + encodeURIComponent(f.name));
+  x.upload.onprogress = function(ev){
+    if (ev.lengthComputable){
+      var p = Math.round(ev.loaded / ev.total * 100);
+      fill.style.width = p + '%';
+      st.textContent = p + '%';
+    }
+  };
+  x.onload = function(){
+    uploading--;
+    if (x.status === 200){
+      fill.style.width = '100%';
+      st.className = 'qst ok'; st.textContent = '完成';
+    } else {
+      st.className = 'qst err'; st.textContent = '失败';
+    }
+    done();
+  };
+  x.onerror = function(){
+    uploading--;
+    st.className = 'qst err'; st.textContent = '失败';
+    done();
+  };
+  x.send(f);
+}
+
+/* ───────── 列表 ───────── */
+var ALL = [], filtered = [];
+var FILTERS = [
+  { key: 'all',     label: '全部', test: function(){ return true; } },
+  { key: 'image',   label: '图片', test: function(it){ return it.kind === 'image'; } },
+  { key: 'video',   label: '视频', test: function(it){ return it.kind === 'video'; } },
+  { key: 'audio',   label: '音乐', test: function(it){ return it.kind === 'audio'; } },
+  { key: 'download',label: '文件', test: function(it){ return it.kind === 'download'; } }
+];
+var curFilter = 'all', curQuery = '';
+
+function loadList(){
+  fetch('/api/list', { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(a){
+      ALL = Array.isArray(a) ? a : [];
+      ALL.sort(function(x, y){ return (y.date || 0) - (x.date || 0); });
+      renderChips();
+      renderList();
+    })
+    .catch(function(){
+      $('list').innerHTML = '';
+      var e = document.createElement('div');
+      e.className = 'empty'; e.textContent = '加载失败，点右上角刷新重试';
+      $('list').appendChild(e);
+    });
+}
+
+function renderChips(){
+  var box = $('chips');
+  box.innerHTML = '';
+  FILTERS.forEach(function(f){
+    var n = ALL.filter(f.test).length;
+    var b = document.createElement('button');
+    b.className = 'chip' + (f.key === curFilter ? ' on' : '');
+    b.textContent = f.label + (n ? ' ' + n : '');
+    b.onclick = function(){ curFilter = f.key; renderChips(); renderList(); };
+    box.appendChild(b);
+  });
+}
+
+function renderList(){
+  var f = null;
+  FILTERS.forEach(function(x){ if (x.key === curFilter) f = x; });
+  filtered = ALL.filter(f.test);
+  if (curQuery){
+    var q = curQuery.toLowerCase();
+    filtered = filtered.filter(function(it){
+      return (it.name || '').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  var box = $('list');
+  box.innerHTML = '';
+  if (!filtered.length){
+    var e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = ALL.length ? '没有匹配的文件' : '（暂无文件，先从上方上传吧）';
+    box.appendChild(e);
+  }
+  filtered.forEach(function(it){
+    var row = document.createElement('div');
+    row.className = 'row';
+
+    var th = document.createElement('div');
+    th.className = 'thumb';
+    if (it.kind === 'image' && it.id !== undefined && it.id !== null && it.id !== ''){
+      var img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = downloadUrl(it);
+      img.alt = '';
+      th.appendChild(img);
+    } else {
+      th.textContent = iconOf(it);
+    }
+
+    var info = document.createElement('div');
+    info.className = 'info';
+    var nm = document.createElement('div');
+    nm.className = 'nm';
+    nm.textContent = it.name || '(未命名)';
+    var meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = fmtSize(it.size) + (it.date ? ' · ' + fmtDate(it.date) : '');
+    info.appendChild(nm); info.appendChild(meta);
+
+    var a = document.createElement('a');
+    a.className = 'dl';
+    a.textContent = '下载';
+    a.href = downloadUrl(it);
+
+    row.appendChild(th); row.appendChild(info); row.appendChild(a);
+    box.appendChild(row);
+  });
+
+  var total = 0;
+  ALL.forEach(function(it){ total += Number(it.size) || 0; });
+  $('stat').textContent = '共 ' + ALL.length + ' 项 · ' + fmtSize(total) +
+    (filtered.length !== ALL.length ? '（当前筛选 ' + filtered.length + ' 项）' : '');
+}
+
+/* ───────── 事件绑定 ───────── */
+$('host').textContent = location.host;
+$('drop').onclick = pickFiles;
+$('file').onchange = function(){ enqueue(this.files); this.value = ''; };
+$('refresh').onclick = loadList;
+$('search').oninput = function(){ curQuery = this.value.trim(); renderList(); };
+
+['dragover', 'dragenter'].forEach(function(ev){
+  document.addEventListener(ev, function(e){ e.preventDefault(); $('drop').classList.add('over'); });
+});
+['dragleave', 'drop'].forEach(function(ev){
+  document.addEventListener(ev, function(e){
+    e.preventDefault();
+    if (ev === 'drop' || e.target === document.documentElement) $('drop').classList.remove('over');
+  });
+});
+document.addEventListener('drop', function(e){
+  $('drop').classList.remove('over');
+  if (e.dataTransfer && e.dataTransfer.files) enqueue(e.dataTransfer.files);
+});
+
+/* 自动刷新：前台可见且没有上传任务时每 10 秒 */
+setInterval(function(){
+  if (!uploading && document.visibilityState === 'visible') loadList();
+}, 10000);
+
+loadList();
+</script>
+</body>
+</html>

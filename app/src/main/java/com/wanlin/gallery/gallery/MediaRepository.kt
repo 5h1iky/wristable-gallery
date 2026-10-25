@@ -18,8 +18,10 @@ object MediaRepository {
     /** 加载并分组（应在工作线程调用） */
     fun load(context: Context, mode: Mode): List<MediaSection> {
         val items = ArrayList<MediaItem>()
-        if (mode != Mode.VIDEOS) items += queryImages(context)
-        if (mode != Mode.IMAGES) items += queryVideos(context)
+        // runCatching 捕获 Throwable：部分授权（只给了图片没给视频）或 ROM 拒绝查询时
+        // 该类目返回空即可，绝不让查询异常打崩工作线程
+        if (mode != Mode.VIDEOS) items += runCatching { queryImages(context) }.getOrDefault(emptyList())
+        if (mode != Mode.IMAGES) items += runCatching { queryVideos(context) }.getOrDefault(emptyList())
         items.sortByDescending { it.date }
         return groupByDate(items)
     }

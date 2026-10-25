@@ -44,7 +44,7 @@ class VideoPlayerActivity : BaseActivity() {
     private var rotationDeg = 0f          // 旋转记忆（会话内）
     private var savedPosition = 0
 
-    private val hideRunnable = Runnable { if (!userPaused) toggleChrome(false) }
+    private val hideRunnable = Runnable { if (!userPaused && !locked) toggleChrome(false) }
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
         override fun run() {
@@ -69,8 +69,8 @@ class VideoPlayerActivity : BaseActivity() {
         savedPosition = prefs().getInt("vpos_$videoId", 0)
 
         tintSeekbar(AccentManager.color())
-        setupButtons()
         setupGestures()
+        setupButtons()
         setupTexture()
     }
 
@@ -139,8 +139,7 @@ class VideoPlayerActivity : BaseActivity() {
                     toggleChrome(binding.topBar.alpha < 0.5f)
                     scheduleHide()
                 } else {
-                    binding.btnLock.visibility = View.VISIBLE
-                    binding.btnLock.alpha = 0.6f
+                    showLockOnly()
                 }
             }
             onVerticalDragStart = {
@@ -151,14 +150,13 @@ class VideoPlayerActivity : BaseActivity() {
             onVerticalDrag = { frac ->
                 val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
                 val maxVol = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                // 手指上滑 frac 为负：左半屏亮度、右半屏音量（与旧版一致）
-                val f = -frac
+                // frac = 累计拖动量/视图高，手指上滑为正：左半屏亮度、右半屏音量，上滑调大
                 if (lastTouchX < binding.root.width / 2) {
                     val attrs = window.attributes
-                    attrs.screenBrightness = (dragStartBri + f).coerceIn(0.05f, 1f)
+                    attrs.screenBrightness = (dragStartBri + frac).coerceIn(0.05f, 1f)
                     window.attributes = attrs
                 } else {
-                    val v = (dragStartVol + (f * maxVol).toInt()).coerceIn(0, maxVol)
+                    val v = (dragStartVol + (frac * maxVol).toInt()).coerceIn(0, maxVol)
                     audio.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0)
                 }
             }
@@ -187,9 +185,17 @@ class VideoPlayerActivity : BaseActivity() {
             updatePlayIcon()
         }
         binding.btnLock.setOnClickListener {
-            locked = !locked
-            it.alpha = if (locked) 0.45f else 1f
-            if (locked) toggleChrome(false) else { toggleChrome(true); scheduleHide() }
+            if (locked) {
+                locked = false
+                controller.gestureLocked = false
+                binding.btnLock.alpha = 1f
+                toggleChrome(true)
+                scheduleHide()
+            } else {
+                locked = true
+                controller.gestureLocked = true
+                toggleChrome(false)
+            }
         }
         // 旋转：90° 步进，带动画，会话记忆
         binding.btnRotate.setOnClickListener {
@@ -234,12 +240,31 @@ class VideoPlayerActivity : BaseActivity() {
     }
 
     private fun toggleChrome(show: Boolean) {
-        val a = if (show) 1f else 0f
-        binding.topBar.animate().alpha(a).setDuration(200).start()
-        binding.bottomBar.animate().alpha(a).setDuration(200).start()
-        if (!locked) binding.btnLock.visibility = View.VISIBLE
-        if (show && userPaused) binding.btnPlay.animate().alpha(1f).setDuration(200).start()
-        else binding.btnPlay.animate().alpha(if (show) 0f else a).setDuration(200).start()
+        if (show && locked) {
+            showLockOnly()
+            return
+        }
+        fadeChrome(binding.topBar, show)
+        fadeChrome(binding.bottomBar, show)
+        fadeChrome(binding.btnPlay, show)
+        fadeChrome(binding.btnRotate, show)
+        fadeChrome(binding.btnLock, show)
+    }
+
+    /** 锁定态单击：只呼出解锁按钮（右上控件组独立于 topBar，父透明不受顶栏淡出影响） */
+    private fun showLockOnly() {
+        fadeChrome(binding.btnRotate, false)
+        val v = binding.btnLock
+        v.visibility = View.VISIBLE
+        v.animate().alpha(0.6f).setDuration(200).start()
+    }
+
+    /** 淡入/淡出 + 末态切可见性：alpha=0 的 View 仍会拦截点击，必须 INVISIBLE */
+    private fun fadeChrome(v: View, show: Boolean) {
+        if (show) v.visibility = View.VISIBLE
+        v.animate().alpha(if (show) 1f else 0f).setDuration(200).withEndAction {
+            if (!show) v.visibility = View.INVISIBLE
+        }.start()
     }
 
     // ─────────── 生命周期 ───────────

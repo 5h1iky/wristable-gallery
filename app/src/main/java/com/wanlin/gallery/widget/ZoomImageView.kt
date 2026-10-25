@@ -12,8 +12,8 @@ import android.view.ScaleGestureDetector
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
 import androidx.appcompat.widget.AppCompatImageView
+import kotlin.math.abs
 import kotlin.math.hypot
-import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -90,13 +90,14 @@ class ZoomImageView @JvmOverloads constructor(
                     applyMatrix()
                     return true
                 }
-                // 未放大：纵向下滑收集为退出手势
-                if (pulling || (dy < -touchSlop && Math.abs(dy) > Math.abs(dx))) {
-                    return false   // 向上滑不管
-                } else if (dy > touchSlop || pulling) {
+                // 未放大：纵向下滑收集为退出手势。
+                // 注意：GestureDetector 的 dy = 上次Y − 当前Y，手指【下滑】时 dy < 0。
+                if (!pulling && dy < -touchSlop && abs(dy) > abs(dx)) {
                     pulling = true
-                    pullAccum += dy
-                    onPullDown?.invoke((pullAccum / height).coerceIn(0f, 1f))
+                }
+                if (pulling) {
+                    if (dy < 0) pullAccum += -dy
+                    onPullDown?.invoke((pullAccum / height.coerceAtLeast(1)).coerceIn(0f, 1f))
                     return true
                 }
                 return false
@@ -185,8 +186,9 @@ class ZoomImageView @JvmOverloads constructor(
             addUpdateListener { av ->
                 val t = av.animatedValue as Float
                 val s = from + (to - from) * t
-                val cur = currentScale()
-                val f = if (cur == 0f) 1f else s / cur
+                // 每帧都从 startM 出发，缩放因子必须是「目标/起点」而非「目标/当前」，
+                // 否则矩阵被重置后按增量相乘，结果震荡且最终停不到目标值。
+                val f = if (from <= 0f) s else s / from
                 userMatrix.set(startM)
                 tmp.reset()
                 tmp.postScale(f, f, fx, fy)

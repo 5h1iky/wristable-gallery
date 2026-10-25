@@ -10,6 +10,7 @@ import android.view.ScaleGestureDetector
 import android.view.TextureView
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.min
 
@@ -29,7 +30,10 @@ class VideoZoomController(private val view: TextureView) {
 
     var onSingleTap: (() -> Unit)? = null
     var onVerticalDragStart: (() -> Unit)? = null
-    var onVerticalDrag: ((Float) -> Unit)? = null   // frac = 纵向拖动量/视图高
+    var onVerticalDrag: ((Float) -> Unit)? = null   // frac = 纵向拖动量/视图高（手指上滑为正）
+
+    /** 锁定后禁用缩放/双击/平移/音量亮度手势（单击仍回调，用于呼出解锁按钮） */
+    var gestureLocked = false
 
     private var contentW = 0
     private var contentH = 0
@@ -46,6 +50,7 @@ class VideoZoomController(private val view: TextureView) {
     private val scaleDetector = ScaleGestureDetector(view.context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(det: ScaleGestureDetector): Boolean {
+                if (gestureLocked) return true
                 val f = det.scaleFactor
                 val cur = currentScale()
                 val next = (cur * f).coerceIn(1f, 4f)
@@ -67,6 +72,7 @@ class VideoZoomController(private val view: TextureView) {
             }
 
             override fun onDoubleTap(e: MotionEvent): Boolean {
+                if (gestureLocked) return true
                 val cur = currentScale()
                 val target = if (cur > 1.05f) 1f else 2.5f
                 animateScale(cur, target, e.x, e.y)
@@ -76,6 +82,7 @@ class VideoZoomController(private val view: TextureView) {
             override fun onScroll(
                 e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float
             ): Boolean {
+                if (gestureLocked) return true
                 if (scaleDetector.isInProgress) return true
                 if (currentScale() > 1.05f) {
                     tmp.reset()
@@ -85,8 +92,9 @@ class VideoZoomController(private val view: TextureView) {
                     applyMatrix()
                     return true
                 }
-                // 未放大：纵向拖动 → 音量/亮度
-                if (!draggingVert && dy > touchSlop && Math.abs(dy) > Math.abs(dx)) {
+                // 未放大：纵向拖动 → 音量/亮度。
+                // 注意：GestureDetector 的 dy = 上次Y − 当前Y，手指【上滑】dy > 0 → frac > 0。
+                if (!draggingVert && abs(dy) > touchSlop && abs(dy) > abs(dx)) {
                     draggingVert = true
                     onVerticalDragStart?.invoke()
                 }
@@ -192,8 +200,9 @@ class VideoZoomController(private val view: TextureView) {
             addUpdateListener { av ->
                 val t = av.animatedValue as Float
                 val s = from + (to - from) * t
-                val cur = currentScale()
-                val f = if (cur == 0f) 1f else s / cur
+                // 每帧都从 startM 出发，缩放因子必须是「目标/起点」而非「目标/当前」，
+                // 否则矩阵被重置后按增量相乘，结果震荡且最终停不到目标值。
+                val f = if (from <= 0f) s else s / from
                 userMatrix.set(startM)
                 tmp.reset()
                 tmp.postScale(f, f, fx, fy)

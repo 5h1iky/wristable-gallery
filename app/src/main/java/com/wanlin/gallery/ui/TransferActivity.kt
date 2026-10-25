@@ -36,6 +36,8 @@ class TransferActivity : BaseActivity() {
     }
 
     private fun startServer() {
+        // running 在 start() 内同步置位：快速连点/重复进入不会创建第二个实例
+        if (server?.running == true) return
         val port = TransferPrefs.port(this)
         server = HttpFileServer(this, port) { msg -> runOnUiThread { binding.tvStatus.text = msg } }
         server?.start()

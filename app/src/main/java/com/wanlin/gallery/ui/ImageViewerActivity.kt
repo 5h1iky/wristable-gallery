@@ -64,20 +64,23 @@ class ImageViewerActivity : BaseActivity() {
     }
 
     private fun loadMeta() {
+        if (ids.isEmpty()) return
         val cols = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
-        contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cols,
-            "${MediaStore.Images.Media._ID} IN (${ids.joinToString(",")})", null, null
-        )?.use { c ->
-            val iId = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val iName = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            val iTaken = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
-            val iAdded = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-            while (c.moveToNext()) {
-                val id = c.getLong(iId)
-                val taken = c.getLong(iTaken)
-                names[id] = c.getString(iName) ?: "IMG_$id"
-                dates[id] = if (taken > 0) taken else c.getLong(iAdded) * 1000
+        runCatching {
+            contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cols,
+                "${MediaStore.Images.Media._ID} IN (${ids.joinToString(",")})", null, null
+            )?.use { c ->
+                val iId = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val iName = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val iTaken = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                val iAdded = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+                while (c.moveToNext()) {
+                    val id = c.getLong(iId)
+                    val taken = c.getLong(iTaken)
+                    names[id] = c.getString(iName) ?: "IMG_$id"
+                    dates[id] = if (taken > 0) taken else c.getLong(iAdded) * 1000
+                }
             }
         }
     }
@@ -97,8 +100,13 @@ class ImageViewerActivity : BaseActivity() {
 
     private fun toggleChrome(show: Boolean) {
         val a = if (show) 1f else 0f
-        binding.topBar.animate().alpha(a).setDuration(200).start()
-        binding.bottomBar.animate().alpha(a).setDuration(200).start()
+        for (v in listOf(binding.topBar, binding.bottomBar)) {
+            if (show) v.visibility = View.VISIBLE
+            // 淡出后切 INVISIBLE：alpha=0 的 View 仍会拦截点击（返回键等变成隐形热区）
+            v.animate().alpha(a).setDuration(200).withEndAction {
+                if (!show) v.visibility = View.INVISIBLE
+            }.start()
+        }
     }
 
     /** 页面适配器：每页一张可缩放大图（私有，避免暴露私有 VH 类型） */

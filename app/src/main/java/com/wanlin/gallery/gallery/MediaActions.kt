@@ -91,7 +91,13 @@ object MediaActions {
             runCatching { c.contentResolver.delete(dest, null, null) }
             return null
         }
-        inp.use { i -> out.use { o -> i.copyTo(o) } }
+        try {
+            inp.use { i -> out.use { o -> i.copyTo(o) } }
+        } catch (_: Exception) {
+            // 拷贝中途失败：删掉已插入的条目，避免留下 0 字节/截断的半截文件
+            runCatching { c.contentResolver.delete(dest, null, null) }
+            return null
+        }
         return name
     }
 
@@ -140,11 +146,16 @@ object MediaActions {
     }
 
     /** 重命名（改 MediaStore DISPLAY_NAME；30+ 对非自有文件可能抛 SecurityException） */
-    fun rename(c: Context, it: MediaItem, newName: String): Boolean = try {
-        val v = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, newName) }
-        c.contentResolver.update(it.uri, v, null, null) > 0
-    } catch (_: Exception) {
-        false
+    fun rename(c: Context, it: MediaItem, newName: String): Boolean {
+        val clean = newName.trim()
+        // 拒绝空名/超长名/文件名非法字符，防止改出打不开的文件
+        if (clean.isEmpty() || clean.length > 120 || clean.any { it in "/\\:*?\"<>|" }) return false
+        return try {
+            val v = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, clean) }
+            c.contentResolver.update(it.uri, v, null, null) > 0
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /** 直接删除：本应用自建文件、或 ≤29 已有写权限时可用 */

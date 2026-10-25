@@ -252,14 +252,14 @@ class GalleryActivity : BaseActivity() {
                 pendingTrashIds = longArrayOf(item.id)
                 trashLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
                 return
-            } catch (_: Exception) {
-                // ROM 不支持回收站，继续降级
+            } catch (_: Throwable) {
+                // ROM 不支持回收站（含框架缺 API 的 NoSuchMethodError），继续降级
             }
             try {
                 val pi = MediaStore.createDeleteRequest(contentResolver, listOf(item.uri))
                 pendingTrashIds = longArrayOf(item.id)
                 trashLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
-            } catch (_: Exception) {
+            } catch (_: Throwable) {
                 Toast.makeText(this, R.string.op_failed, Toast.LENGTH_SHORT).show()
             }
         } else {

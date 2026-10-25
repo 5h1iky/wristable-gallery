@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -24,7 +25,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- 顶部条（3 秒淡出）：返回 + 文件名 + 锁定 -->
+    <!-- 顶部条（3 秒淡出）：返回 + 文件名 -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
@@ -34,7 +35,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="8dp"
-        android:paddingEnd="8dp">
+        android:paddingEnd="96dp">
 
         <ImageButton
             android:id="@+id/btnBack"
@@ -56,6 +57,15 @@
             android:maxLines="1"
             android:textColor="@color/text_primary"
             android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 右上控件组（旋转/锁定）：独立于 topBar，锁定后可单独呼出解锁按钮 -->
+    <LinearLayout
+        android:id="@+id/rightControls"
+        android:layout_width="wrap_content"
+        android:layout_height="52dp"
+        android:layout_gravity="top|end"
+        android:orientation="horizontal">
 
         <ImageButton
             android:id="@+id/btnRotate"
@@ -108,8 +118,7 @@
             android:layout_height="wrap_content"
             android:textColor="@color/text_primary"
             android:textSize="12sp"
-            tools:text="02:15"
-            xmlns:tools="http://schemas.android.com/tools" />
+            tools:text="02:15" />
 
         <com.google.android.material.slider.Slider
             android:id="@+id/seekBar"
@@ -136,7 +145,6 @@
             android:layout_height="wrap_content"
             android:textColor="@color/text_secondary"
             android:textSize="12sp"
-            tools:text="10:30"
-            xmlns:tools="http://schemas.android.com/tools" />
+            tools:text="10:30" />
     </LinearLayout>
 </FrameLayout>
